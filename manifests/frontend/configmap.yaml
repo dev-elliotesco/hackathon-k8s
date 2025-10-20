@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-html
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Hackathon K8s</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                margin: 0;
+                padding: 0;
+                color: white;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+            }
+            .container {
+                text-align: center;
+                padding: 40px;
+                background: rgba(255,255,255,0.15);
+                border-radius: 20px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255,255,255,0.2);
+                max-width: 500px;
+            }
+            .logo {
+                font-size: 1.8em;
+                margin-bottom: 20px;
+                font-weight: bold;
+                letter-spacing: 2px;
+            }
+            .participant-name {
+                font-size: 2.5em;
+                color: #fbbf24;
+                margin: 20px 0;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            }
+            .welcome-text {
+                font-size: 1.3em;
+                margin: 30px 0;
+                line-height: 1.5;
+            }
+            .status {
+                color: #4ade80;
+                font-weight: bold;
+                font-size: 1.1em;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="logo">*** HACKATHON K8S ***</div>
+            
+            <!-- CAMBIA ESTE NOMBRE POR EL TUYO -->
+            <div class="participant-name">Participante Demo</div>
+            
+            <div class="welcome-text">
+                Bienvenido al Hackathon Kubernetes!
+            </div>
+            
+            <p class="status">Tu aplicacion esta funcionando correctamente</p>
+            
+            <p style="font-size: 0.9em; margin-top: 40px; opacity: 0.8;">
+                Hackathon K8s 2025
+            </p>
+        </div>
+    </body>
+    </html>

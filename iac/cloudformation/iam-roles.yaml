@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Roles IAM para Hackathon K8s - Cluster EKS'
+
+Parameters:
+  ClusterName:
+    Type: String
+    Default: hackathon-cluster
+    Description: Nombre del cluster EKS
+
+Resources:
+  # Rol de servicio para EKS Cluster
+  EKSServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ClusterName}-service-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-service-role'
+
+  # Rol para nodos worker EKS
+  EKSNodeGroupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ClusterName}-nodegroup-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        # Política adicional para Load Balancer Controller
+        - arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-nodegroup-role'
+
+  # Instance Profile para nodos
+  EKSNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${ClusterName}-node-instance-profile'
+      Roles:
+        - !Ref EKSNodeGroupRole
+
+Outputs:
+  EKSServiceRoleArn:
+    Description: ARN del rol de servicio EKS
+    Value: !GetAtt EKSServiceRole.Arn
+    Export:
+      Name: !Sub '${ClusterName}-ServiceRole-ARN'
+
+  EKSNodeGroupRoleArn:
+    Description: ARN del rol de nodos EKS
+    Value: !GetAtt EKSNodeGroupRole.Arn
+    Export:
+      Name: !Sub '${ClusterName}-NodeGroupRole-ARN'
+
+  EKSNodeInstanceProfileArn:
+    Description: ARN del instance profile
+    Value: !GetAtt EKSNodeInstanceProfile.Arn
+    Export:
+      Name: !Sub '${ClusterName}-NodeInstanceProfile-ARN'

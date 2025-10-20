@@ -1,0 +1,153 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC y red para Hackathon K8s - Cluster EKS público'
+
+Parameters:
+  ClusterName:
+    Type: String
+    Default: hackathon-cluster
+    Description: Nombre del cluster EKS
+  
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block para la VPC
+
+Resources:
+  # VPC Principal
+  HackathonVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-vpc'
+        - Key: kubernetes.io/cluster/${ClusterName}
+          Value: shared
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-igw'
+
+  # Attach Internet Gateway
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref HackathonVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Subnet Pública 1
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref HackathonVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-public-subnet-1'
+        - Key: kubernetes.io/cluster/${ClusterName}
+          Value: shared
+        - Key: kubernetes.io/role/elb
+          Value: '1'
+
+  # Subnet Pública 2 (requerida por EKS)
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref HackathonVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-public-subnet-2'
+        - Key: kubernetes.io/cluster/${ClusterName}
+          Value: shared
+        - Key: kubernetes.io/role/elb
+          Value: '1'
+
+  # Route Table Pública
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref HackathonVPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-public-rt'
+
+  # Ruta pública hacia Internet Gateway
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  # Asociar Subnet 1 con Route Table
+  PublicSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  # Asociar Subnet 2 con Route Table
+  PublicSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # Security Group para el cluster EKS
+  ClusterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group para EKS cluster
+      VpcId: !Ref HackathonVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS traffic
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-cluster-sg'
+
+Outputs:
+  VpcId:
+    Description: ID de la VPC
+    Value: !Ref HackathonVPC
+    Export:
+      Name: !Sub '${ClusterName}-VPC-ID'
+
+  PublicSubnet1:
+    Description: ID de la subnet pública 1
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub '${ClusterName}-PublicSubnet1-ID'
+
+  PublicSubnet2:
+    Description: ID de la subnet pública 2
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub '${ClusterName}-PublicSubnet2-ID'
+
+  ClusterSecurityGroup:
+    Description: ID del Security Group del cluster
+    Value: !Ref ClusterSecurityGroup
+    Export:
+      Name: !Sub '${ClusterName}-ClusterSG-ID'
+
+  ClusterName:
+    Description: Nombre del cluster
+    Value: !Ref ClusterName
+    Export:
+      Name: !Sub '${ClusterName}-Name'

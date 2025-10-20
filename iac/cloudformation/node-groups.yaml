@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Node Group para Hackathon K8s - Un nodo optimizado para 25-30 pods'
+
+Parameters:
+  ClusterName:
+    Type: String
+    Default: hackathon-cluster
+    Description: Nombre del cluster EKS
+
+  NodeInstanceType:
+    Type: String
+    Default: t3.large
+    Description: Tipo de instancia para los nodos (t3.large soporta ~30 pods)
+    AllowedValues:
+      - t3.medium  # ~17 pods
+      - t3.large   # ~35 pods
+      - t3.xlarge  # ~58 pods
+      - m5.large   # ~29 pods
+      - m5.xlarge  # ~58 pods
+
+  NodeImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/eks/optimized-ami/1.27/amazon-linux-2/recommended/image_id
+    Description: AMI ID para nodos EKS (se obtiene automáticamente según la región)
+
+Resources:
+  # Node Group EKS
+  EKSNodeGroup:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      NodegroupName: !Sub '${ClusterName}-nodegroup'
+      ClusterName: !ImportValue
+        Fn::Sub: '${ClusterName}-Name'
+      NodeRole: !Sub 
+        - 'arn:aws:iam::${AWS::AccountId}:role/${RoleName}'
+        - RoleName: !Sub '${ClusterName}-nodegroup-role'
+      
+      # Configuración de instancias
+      InstanceTypes:
+        - !Ref NodeInstanceType
+      AmiType: AL2_x86_64
+      CapacityType: ON_DEMAND
+      DiskSize: 20
+      
+      # Configuración de escalado - Un solo nodo para hackathon
+      ScalingConfig:
+        MinSize: 1
+        MaxSize: 1
+        DesiredSize: 1
+      
+      # Configuración de red - Solo subnets públicas
+      Subnets:
+        - !ImportValue
+          Fn::Sub: '${ClusterName}-PublicSubnet1-ID'
+        - !ImportValue
+          Fn::Sub: '${ClusterName}-PublicSubnet2-ID'
+      
+      # Configuración de acceso remoto (opcional para debugging)
+      RemoteAccess:
+        Ec2SshKey: !Ref NodeGroupKeyPair
+        SourceSecurityGroups:
+          - !Ref NodeGroupSecurityGroup
+      
+      # Labels para el nodo
+      Labels:
+        Environment: hackathon
+        NodeGroup: primary
+        
+      # Taints (ninguno para máxima flexibilidad)
+      Taints: []
+      
+      Tags:
+        Name: !Sub '${ClusterName}-node'
+        Environment: hackathon
+
+  # Security Group para nodos
+  NodeGroupSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group para nodos del EKS
+      VpcId: !ImportValue
+        Fn::Sub: '${ClusterName}-VPC-ID'
+      SecurityGroupIngress:
+        # SSH desde cualquier lugar (solo para hackathon)
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH access
+        # Tráfico entre nodos
+        - IpProtocol: '-1'
+          SourceSecurityGroupId: !Ref 'AWS::NoValue'
+          Description: Node-to-node communication
+      SecurityGroupEgress:
+        # Todo el tráfico de salida permitido
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
+          Description: All outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-nodes-sg'
+
+  # Key Pair para acceso SSH (opcional)
+  NodeGroupKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub '${ClusterName}-keypair'
+      KeyType: rsa
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-keypair'
+
+Outputs:
+  NodeGroupName:
+    Description: Nombre del node group
+    Value: !Ref EKSNodeGroup
+    Export:
+      Name: !Sub '${ClusterName}-NodeGroup-Name'
+
+  NodeGroupArn:
+    Description: ARN del node group
+    Value: !GetAtt EKSNodeGroup.Arn
+    Export:
+      Name: !Sub '${ClusterName}-NodeGroup-ARN'
+
+  NodeGroupStatus:
+    Description: Estado del node group
+    Value: !GetAtt EKSNodeGroup.Status
+    Export:
+      Name: !Sub '${ClusterName}-NodeGroup-Status'
+
+  NodeGroupKeyPair:
+    Description: Key Pair para SSH
+    Value: !Ref NodeGroupKeyPair
+    Export:
+      Name: !Sub '${ClusterName}-KeyPair-Name'
+
+  NodeSecurityGroup:
+    Description: Security Group de los nodos
+    Value: !Ref NodeGroupSecurityGroup
+    Export:
+      Name: !Sub '${ClusterName}-NodeSG-ID'

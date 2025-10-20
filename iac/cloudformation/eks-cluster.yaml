@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Cluster EKS para Hackathon K8s - Configuración simple de un nodo'
+
+Parameters:
+  ClusterName:
+    Type: String
+    Default: hackathon-cluster
+    Description: Nombre del cluster EKS
+
+  KubernetesVersion:
+    Type: String
+    Default: '1.27'
+    Description: Versión de Kubernetes
+    AllowedValues:
+      - '1.27'
+      - '1.28'
+      - '1.29'
+
+Resources:
+  # Cluster EKS
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Ref ClusterName
+      Version: !Ref KubernetesVersion
+      RoleArn: !Sub 
+        - 'arn:aws:iam::${AWS::AccountId}:role/${RoleName}'
+        - RoleName: !Sub '${ClusterName}-service-role'
+      ResourcesVpcConfig:
+        SecurityGroupIds:
+          - !ImportValue 
+            Fn::Sub: '${ClusterName}-ClusterSG-ID'
+        SubnetIds:
+          - !ImportValue
+            Fn::Sub: '${ClusterName}-PublicSubnet1-ID'
+          - !ImportValue
+            Fn::Sub: '${ClusterName}-PublicSubnet2-ID'
+        EndpointConfigAccess:
+          PublicAccess: true
+          PrivateAccess: false
+        PublicAccessCidrs:
+          - 0.0.0.0/0
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+      Tags:
+        - Key: Name
+          Value: !Ref ClusterName
+        - Key: Environment
+          Value: hackathon
+
+Outputs:
+  ClusterName:
+    Description: Nombre del cluster EKS
+    Value: !Ref EKSCluster
+    Export:
+      Name: !Sub '${ClusterName}-Name'
+
+  ClusterArn:
+    Description: ARN del cluster EKS
+    Value: !GetAtt EKSCluster.Arn
+    Export:
+      Name: !Sub '${ClusterName}-ARN'
+
+  ClusterEndpoint:
+    Description: Endpoint del cluster EKS
+    Value: !GetAtt EKSCluster.Endpoint
+    Export:
+      Name: !Sub '${ClusterName}-Endpoint'
+
+  ClusterSecurityGroupId:
+    Description: Security Group del cluster
+    Value: !GetAtt EKSCluster.ClusterSecurityGroupId
+    Export:
+      Name: !Sub '${ClusterName}-ClusterSecurityGroupId'
