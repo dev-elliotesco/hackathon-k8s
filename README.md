@@ -44,6 +44,12 @@ Este repositorio contiene toda la **Infraestructura como Código (IaC)** y **man
 ├── 📄 K8S_CHEAT_SHEET.md           # Guía de comandos de Kubernetes
 ```
 
+## Arquitectura de la Infraestructura
+
+La siguiente imagen muestra la arquitectura completa de la infraestructura del hackathon desplegada en AWS:
+
+![Arquitectura Cloud](iac/cloud.png)
+
 ##  Instalación
 
 ### 1. Clonar el Repositorio
@@ -161,8 +167,14 @@ kubectl describe node | grep -A 5 "Allocatable"
 # Crear namespace para el proyecto del hackathon
 kubectl create namespace hackaton-app
 
+# Establecer el namespace por defecto
+kubectl config set-context --current --namespace=hackaton-app
+
 # Verificar que el namespace fue creado
 kubectl get namespaces
+
+# Verificar el namespace actual por defecto
+kubectl config view --minify --output 'jsonpath={..namespace}'
 ```
 
 ### 3. Instalar NGINX Ingress Controller con Helm

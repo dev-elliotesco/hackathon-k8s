@@ -55,19 +55,10 @@ Resources:
         - !ImportValue
           Fn::Sub: '${ClusterName}-PublicSubnet2-ID'
       
-      # Configuración de acceso remoto (opcional para debugging)
-      RemoteAccess:
-        Ec2SshKey: !Ref NodeGroupKeyPair
-        SourceSecurityGroups:
-          - !Ref NodeGroupSecurityGroup
-      
       # Labels para el nodo
       Labels:
         Environment: hackathon
         NodeGroup: primary
-        
-      # Taints (ninguno para máxima flexibilidad)
-      Taints: []
       
       Tags:
         Name: !Sub '${ClusterName}-node'
@@ -80,17 +71,6 @@ Resources:
       GroupDescription: Security group para nodos del EKS
       VpcId: !ImportValue
         Fn::Sub: '${ClusterName}-VPC-ID'
-      SecurityGroupIngress:
-        # SSH desde cualquier lugar (solo para hackathon)
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-          Description: SSH access
-        # Tráfico entre nodos
-        - IpProtocol: '-1'
-          SourceSecurityGroupId: !Ref 'AWS::NoValue'
-          Description: Node-to-node communication
       SecurityGroupEgress:
         # Todo el tráfico de salida permitido
         - IpProtocol: '-1'
@@ -99,16 +79,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${ClusterName}-nodes-sg'
-
-  # Key Pair para acceso SSH (opcional)
-  NodeGroupKeyPair:
-    Type: AWS::EC2::KeyPair
-    Properties:
-      KeyName: !Sub '${ClusterName}-keypair'
-      KeyType: rsa
-      Tags:
-        - Key: Name
-          Value: !Sub '${ClusterName}-keypair'
 
 Outputs:
   NodeGroupName:

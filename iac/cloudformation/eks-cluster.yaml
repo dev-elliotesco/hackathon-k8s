@@ -40,14 +40,6 @@ Resources:
           PrivateAccess: false
         PublicAccessCidrs:
           - 0.0.0.0/0
-      Logging:
-        ClusterLogging:
-          EnabledTypes:
-            - Type: api
-            - Type: audit
-            - Type: authenticator
-            - Type: controllerManager
-            - Type: scheduler
       Tags:
         - Key: Name
           Value: !Ref ClusterName
